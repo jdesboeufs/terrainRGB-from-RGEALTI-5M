@@ -1,0 +1,22 @@
+{
+  "name": "terrainrgb-from-rgealti-5m",
+  "version": "1.0.0",
+  "description": "Script qui génère un script qui génère des tuiles \"Terrain RGB\" à partir du RGE ALTI de 5m de l'IGN",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DoFabien/terrainRGB-from-RGEALTI-5M.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DoFabien/terrainRGB-from-RGEALTI-5M/issues"
+  },
+  "homepage": "https://github.com/DoFabien/terrainRGB-from-RGEALTI-5M#readme",
+  "dependencies": {
+    "got": "^11.8.3"
+  }
+}
