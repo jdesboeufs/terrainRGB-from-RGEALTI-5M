@@ -1,8 +1,11 @@
 {
-    "outPath":"/mnt/SSD2/terrainRgb",
+    "outPath": "/mnt/SSD2/terrainRgb",
     "threads": null,
     "deleteUnnecessaryFiles": true,
+    "resolution": "5M",
     "minZoom": 5,
     "maxZoom": 14,
-    "projFilter" : ["RGSPM06U21-STPM50"]
+    "projFilter": [
+        "RGSPM06U21-STPM50"
+    ]
 }

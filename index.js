@@ -49,7 +49,7 @@ const relSrs = {
 }
 
 const generateCmd = async () => {
-    const files = await computeFilesToDownload(RGE_ALTI_BASE_URL, '5M', config.projFilter)
+    const files = await computeFilesToDownload(RGE_ALTI_BASE_URL, config.resolution || '5M', config.projFilter)
     const projs = [...new Set(files.map(f => f.crs))]
 
     // génération des mkdir
