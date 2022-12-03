@@ -18,6 +18,18 @@
   "homepage": "https://github.com/DoFabien/terrainRGB-from-RGEALTI-5M#readme",
   "dependencies": {
     "got": "^11.8.3",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "xo": "^0.53.1"
+  },
+  "xo": {
+    "semicolon": false,
+    "space": 2,
+    "rules": {
+      "comma-dangle": [
+        "error",
+        "never"
+      ],
+      "unicorn/prefer-module": "off"
+    }
   }
 }
