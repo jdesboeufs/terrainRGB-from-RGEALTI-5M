@@ -1,4 +1,4 @@
-const got = require('got') 
+const got = require('got')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
@@ -75,15 +75,15 @@ const generateCmd = async () => {
             if ( date > lastUniqByDep[currentDepIndex].date){
                 lastUniqByDep[currentDepIndex] = ob
             }
-        } 
+        }
         else {
             lastUniqByDep.push(ob)
         }
     }
 
-    
 
-    // génération des mkdir 
+
+    // génération des mkdir
     let mkdirCmd = [
         `mkdir -p ${path.join(config.outPath, '3857/MNT')}`,
         `mkdir -p ${path.join(config.outPath, '3857/terrainRGB')}`
@@ -92,12 +92,12 @@ const generateCmd = async () => {
     for (const proj of projs){
         mkdirCmd.push( `mkdir -p ${path.join(config.outPath,proj, 'raw')}`)
         mkdirCmd.push( `mkdir -p ${path.join(config.outPath,proj, 'asc')}`)
-        
-    }
-    
 
-    // Génération des Wget 
-    let wgetsCmd = []; 
+    }
+
+
+    // Génération des Wget
+    let wgetsCmd = [];
     for (const proj of projs){
         const dataWithThisProj = lastUniqByDep.filter( d => d.proj == proj);
         const w = dataWithThisProj.map( d =>`wget -O ${path.join(config.outPath,proj, 'raw', d.name)} ${baseUrl}${d.name}`)
@@ -131,7 +131,7 @@ const generateCmd = async () => {
         const srs = relSrs[proj]
         gdalTranslateCmd.push(  `gdal_translate -of GTiff -co "TILED=YES" -co COMPRESS=LZW -co BIGTIFF=YES -ot Float32 -a_srs ${srs} "${path.join(config.outPath,proj, 'mnt.vrt')}"  ${path.join(config.outPath,proj, 'mnt.tiff')}` )
         if (deleteUnnecessaryFiles){
-            gdalTranslateCmd.push(`rm -r ${path.join(config.outPath,proj, 'asc')}`) 
+            gdalTranslateCmd.push(`rm -r ${path.join(config.outPath,proj, 'asc')}`)
             gdalTranslateCmd.push(`rm ${path.join(config.outPath,proj, 'mnt.vrt')}`)
         }
     }
@@ -140,7 +140,7 @@ const generateCmd = async () => {
     let gdalWarpCmd = [];
     for (const proj of projs){
         const srs = relSrs[proj]
-  
+
         gdalWarpCmd.push(  `gdalwarp -overwrite -of GTiff -co "TILED=YES" -co COMPRESS=LZW -co BIGTIFF=YES -ot Float32 ${path.join(config.outPath,proj, 'mnt.tiff')} ${path.join(config.outPath,'3857','MNT', `${proj}.tiff`)} -s_srs ${srs} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}` )
         if (deleteUnnecessaryFiles){
             gdalWarpCmd.push(`rm -r ${path.join(config.outPath,proj)}`)
@@ -160,7 +160,7 @@ const generateCmd = async () => {
     // Génération des terrain RGB
     let rgbifyCmd = [];
     for (const proj of projs){
-        
+
         rgbifyCmd.push(  `rio rgbify --format png -j ${threads}  --min-z ${minZoom} --max-z ${maxZoom}  -b -10000  -i 0.1 ${path.join(config.outPath,'3857','MNT', `${proj}_cleaned.tiff`)} ${path.join(config.outPath,'3857','terrainRGB', `${proj}.mbtiles`)}` )
         if (deleteUnnecessaryFiles){
             rgbifyCmd.push(`rm ${path.join(config.outPath,'3857','MNT', `${proj}_cleaned.tiff`)}`)
@@ -206,10 +206,10 @@ const generateCmd = async () => {
     strCmd += '# Génération des tuiles terrain-RGB\n'
     strCmd += rgbifyCmd.join('\n')
     strCmd += '\n\n'
-    
+
     return strCmd;
-    
-    
+
+
 }
 
 const writeSh = async() => {
