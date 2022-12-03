@@ -27,6 +27,7 @@ Céer un fichier config.json, il y a un exemple (config.example.json):
     "outPath":"/mnt/SSD2/terrainRgb", // Le chemin du dossier qui va accueillir toutes les données. Requis
     "threads": null, // nombre de threads utilisé par certains programmes ( defaut: max - 2)
     "deleteUnnecessaryFiles": true, // Ajoute des rm pour supprimer les données qui ne sont plus nécessaires par la suite.
+    "resolution": "5M", // Résolution RGE ALTI à utiliser (1M ou 5M)
     "minZoom": 5, // pour les tuiles finales (default 5)
     "maxZoom": 14, // pour les tuiles finales (default 14)
     "projFilter" : ["RGSPM06U21-STPM50"] // pour ne générer que certains territoire en se basant sur le srid. Par défaut, on prend tout, on a pas de filtre. Les valeurs possibles sont dans la 2e colonne du tableau des correspondances plus bas
@@ -57,12 +58,12 @@ Ou copier/coller les lignes dans le terminal...
 Les résultats finaux, les tuiles RGB en .mbtiles seront dans le dossier 3857/terrainRGB/*.mbtiles
 Un territoire (un code projection) correspond donc à un Mbtiles.
 
-Pour avoir un seul Mbtiles regroupant tout le territoire français, il faudrait fusionner toutes les tuiles en un seul jeu... 
+Pour avoir un seul Mbtiles regroupant tout le territoire français, il faudrait fusionner toutes les tuiles en un seul jeu...
 J'ai perdu mon script qui faisait le job, mais avec Python, il me semble Sqlite, Pillow, Numpy on s'en sortait.
 
 
-# Correspondances territoires / proj ign / srid 
-| Territoire  | Proj IGN  | srid  | 
+# Correspondances territoires / proj ign / srid
+| Territoire  | Proj IGN  | srid  |
 |---|---|---|
 |  France Métropole | LAMB93-IGN69  | EPSG:5698  |
 | Corse  | LAMB93-IGN78C  | EPSG:5699  |
@@ -75,6 +76,6 @@ J'ai perdu mon script qui faisait le job, mais avec Python, il me semble Sqlite,
 | Guadeloupe  | WGS84UTM20-GUAD88  | EPSG:32620  |
 | Martinique  | WGS84UTM20-MART87  | EPSG:32620  |
 
-  
-   
+
+
 
