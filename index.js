@@ -3,6 +3,10 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 
+const {computeFilesToDownload} = require('./lib/files')
+
+const RGE_ALTI_BASE_URL = 'http://files.opendatarchives.fr/professionnels.ign.fr/rgealti/'
+
 let config;
 try {
     config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json')))
@@ -44,44 +48,9 @@ const relSrs = {
     'WGS84UTM20-MART87' : 'EPSG:32620'
 }
 
-
-const baseUrl = 'http://files.opendatarchives.fr/professionnels.ign.fr/rgealti/'
 const generateCmd = async () => {
-    const {body} = await got.get(baseUrl)
-    // console.log(body)
-    let names = body.match(/href="RGEALTI_2-0_5M.*\.7z"/gm)
-    names = names.map( n=> n.replace(/href="/g, '').replace(/"/, '') )
-
-    const lastUniqByDep = [];
-    const projs = []; // liste des projections
-
-    for (const n of names){
-        const _splited = n.split('_')
-        const proj = _splited[4];
-        const dep = _splited[5]
-        const date = _splited[6].replace('.7z','')
-        const ob = {proj, dep, date, name: n }
-
-        if (projFilter && !projFilter.includes(proj)){
-            continue;
-        }
-
-        if (!projs.includes(proj) ){
-            projs.push(proj);
-        }
-
-        const currentDepIndex = lastUniqByDep.findIndex( o => o.dep === dep)
-        if (currentDepIndex !== -1){
-            if ( date > lastUniqByDep[currentDepIndex].date){
-                lastUniqByDep[currentDepIndex] = ob
-            }
-        }
-        else {
-            lastUniqByDep.push(ob)
-        }
-    }
-
-
+    const files = await computeFilesToDownload(RGE_ALTI_BASE_URL, '5M', config.projFilter)
+    const projs = [...new Set(files.map(f => f.crs))]
 
     // génération des mkdir
     let mkdirCmd = [
@@ -90,17 +59,16 @@ const generateCmd = async () => {
 
       ];
     for (const proj of projs){
-        mkdirCmd.push( `mkdir -p ${path.join(config.outPath,proj, 'raw')}`)
-        mkdirCmd.push( `mkdir -p ${path.join(config.outPath,proj, 'asc')}`)
-
+        mkdirCmd.push( `mkdir -p ${path.join(config.outPath, proj, 'raw')}`)
+        mkdirCmd.push( `mkdir -p ${path.join(config.outPath, proj, 'asc')}`)
     }
 
 
     // Génération des Wget
     let wgetsCmd = [];
     for (const proj of projs){
-        const dataWithThisProj = lastUniqByDep.filter( d => d.proj == proj);
-        const w = dataWithThisProj.map( d =>`wget -O ${path.join(config.outPath,proj, 'raw', d.name)} ${baseUrl}${d.name}`)
+        const dataWithThisProj = files.filter(f => f.crs == proj);
+        const w = dataWithThisProj.map(f =>`wget -O ${path.join(config.outPath,proj, 'raw', f.fileName)} ${RGE_ALTI_BASE_URL}${f.fileName}`)
         wgetsCmd = [...wgetsCmd, ...w]
     }
 
