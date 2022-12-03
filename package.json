@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/DoFabien/terrainRGB-from-RGEALTI-5M#readme",
   "dependencies": {
-    "got": "^11.8.3"
+    "got": "^11.8.3",
+    "lodash": "^4.17.21"
   }
 }
