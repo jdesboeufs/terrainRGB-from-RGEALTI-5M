@@ -115,12 +115,13 @@ const generateCmd = async () => {
     }
 
 
-    
+
     // BUILD VRT à partir des asc
     let buildVrtCmd = [];
     for (const proj of projs){
         const srs = relSrs[proj]
-        buildVrtCmd.push(  `gdalbuildvrt  -overwrite -a_srs ${srs} "${path.join(config.outPath,proj, 'mnt.vrt')}" ${path.join(config.outPath,proj, 'asc', '*.asc')}` )
+        buildVrtCmd.push(`find ${path.join(config.outPath,proj, 'asc')} -name '*.asc' > ${path.join(config.outPath,proj, 'input-files.list')}`)
+        buildVrtCmd.push(  `gdalbuildvrt  -overwrite -a_srs ${srs} "${path.join(config.outPath,proj, 'mnt.vrt')}" -input_file_list ${path.join(config.outPath,proj, 'input-files.list')}` )
     }
 
 
