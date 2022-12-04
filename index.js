@@ -139,7 +139,7 @@ const generateCmd = async () => {
   stringCmd += mkdirCmd.join('\n')
   stringCmd += '\n\n'
 
-  stringCmd += '# Téléchargement des .7z des MNT à 5m dans les répertoires "raw"" depuis http://files.opendatarchives.fr/professionnels.ign.fr/rgealti\n'
+  stringCmd += '# Téléchargement des .7z des MNT dans les répertoires "raw"" depuis http://files.opendatarchives.fr/professionnels.ign.fr/rgealti\n'
   stringCmd += wgetsCmd.join('\n')
   stringCmd += '\n\n'
 
