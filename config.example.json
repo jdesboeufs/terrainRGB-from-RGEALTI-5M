@@ -1,5 +1,5 @@
 {
-    "outPath": "/mnt/SSD2/terrainRgb",
+    "outPath": "./out",
     "threads": null,
     "deleteUnnecessaryFiles": true,
     "resolution": "5M",
