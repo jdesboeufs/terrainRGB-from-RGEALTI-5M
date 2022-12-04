@@ -1,5 +1,5 @@
 const got = require('got')
-const fs = require('fs')
+const {writeFile} = require('fs/promises')
 const os = require('os')
 const path = require('path')
 
@@ -182,7 +182,7 @@ const generateCmd = async () => {
 
 const writeSh = async() => {
     const cmd = await generateCmd();
-    fs.writeFileSync('out.sh', cmd, 'utf-8', { mode: 0755 })
+    await writeFile('out.sh', cmd, {encoding: 'utf8', mode: 0o755})
 }
 
 writeSh()
