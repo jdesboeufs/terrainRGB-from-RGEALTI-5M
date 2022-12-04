@@ -92,7 +92,7 @@ const generateCmd = async () => {
   const gdalTranslateCmd = []
   for (const proj of projs) {
     const srs = relSrs[proj]
-    gdalTranslateCmd.push(`gdal_translate -of GTiff -co "TILED=YES" -co COMPRESS=LZW -co BIGTIFF=YES -ot Float32 -a_srs ${srs} "${path.join(outPath, proj, 'mnt.vrt')}"  ${path.join(outPath, proj, 'mnt.tiff')}`)
+    gdalTranslateCmd.push(`gdal_translate -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot Float32 -a_srs ${srs} "${path.join(outPath, proj, 'mnt.vrt')}"  ${path.join(outPath, proj, 'mnt.tiff')}`)
     if (deleteUnnecessaryFiles) {
       gdalTranslateCmd.push(`rm -r ${path.join(outPath, proj, 'asc')}`)
       gdalTranslateCmd.push(`rm ${path.join(outPath, proj, 'mnt.vrt')}`)
@@ -104,7 +104,7 @@ const generateCmd = async () => {
   for (const proj of projs) {
     const srs = relSrs[proj]
 
-    gdalWarpCmd.push(`gdalwarp -overwrite -of GTiff -co "TILED=YES" -co COMPRESS=LZW -co BIGTIFF=YES -ot Float32 ${path.join(outPath, proj, 'mnt.tiff')} ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)} -s_srs ${srs} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}`)
+    gdalWarpCmd.push(`gdalwarp -overwrite -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot Float32 ${path.join(outPath, proj, 'mnt.tiff')} ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)} -s_srs ${srs} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}`)
     if (deleteUnnecessaryFiles) {
       gdalWarpCmd.push(`rm -r ${path.join(outPath, proj)}`)
     }
@@ -113,7 +113,7 @@ const generateCmd = async () => {
   // GDAL_CALC => Supprime les données dont l'altitude est < 0. Terrain RGB ne fonctionne que pour les valeurs positives, sinon on a des artefacts
   const gdalCalcCmd = []
   for (const proj of projs) {
-    gdalCalcCmd.push(`gdal_calc.py --type=Float32 --quiet --co "TILED=YES" --co COMPRESS=LZW --co BIGTIFF=YES  -A ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)} --outfile=${path.join(outPath, '3857', 'MNT', `${proj}_cleaned.tiff`)} --calc="A*(A>0)" --overwrite --NoDataValue=0`)
+    gdalCalcCmd.push(`gdal_calc.py --type=Float32 --quiet --co "TILED=YES" --co "COMPRESS=DEFLATE" --co "PREDICTOR=2" --co "NUM_THREADS=ALL_CPUS" --co "BIGTIFF=YES"  -A ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)} --outfile=${path.join(outPath, '3857', 'MNT', `${proj}_cleaned.tiff`)} --calc="A*(A>0)" --overwrite --NoDataValue=0`)
     if (deleteUnnecessaryFiles) {
       gdalCalcCmd.push(`rm ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)}`) // Pour gagner de la place...
     }
