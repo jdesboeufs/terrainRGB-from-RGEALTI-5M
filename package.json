@@ -29,7 +29,10 @@
         "error",
         "never"
       ],
-      "unicorn/prefer-module": "off"
+      "unicorn/prefer-module": "off",
+      "unicorn/no-array-push-push": "off",
+      "unicorn/prefer-top-level-await": "off",
+      "import/extensions": "off"
     }
   }
 }
