@@ -8,25 +8,32 @@ const config = require('./config.json')
 
 const RGE_ALTI_BASE_URL = 'http://files.opendatarchives.fr/professionnels.ign.fr/rgealti/'
 
-if (!config.outPath){
-    throw new Error(`outPath n'est pas configuré dans config.json`)
+const outPath = config.outPath ? path.resolve(config.outPath) : path.join(__dirname, 'out')
+
+const threads = Number.isInteger(config.threads) ? config.threads : os.cpus().length - 1
+
+if (threads < 1 || threads > os.cpus().length) {
+    throw new Error('threads must be between 1 and num of CPUs')
 }
-// if (!config.outPath || !fs.existsSync(config.outPath)){
-//     throw new Error(`Le répértoire ${config.outPath} n'existe pas. Il faut le créer avant`)
-// }
 
+const deleteUnnecessaryFiles = Boolean(config.deleteUnnecessaryFiles)
 
-const threads = parseInt(config.threads) ? parseInt(config.threads) :  os.cpus().length -2
+const resolution = config.resolution || '5M'
 
-const deleteUnnecessaryFiles = config.deleteUnnecessaryFiles || false; // pour ajouter des commandes qui suppriment les fichiers/dossier qui ne sont plus necessaire
+if (!['1M', '5M'].includes(resolution)) {
+    throw new Error('resolution must be 1M ou 5M')
+}
 
-const minZoom = parseInt(config.minZoom) || 5;
-const maxZoom = parseInt(config.maxZoom) || 14;
+const minZoom = config.minZoom || 5
+const maxZoom = config.maxZoom || 14
 
+if (minZoom < 4 || minZoom > 17 || maxZoom < 4 || maxZoom > 17 || minZoom >= maxZoom) {
+    throw new Error('minZoom and maxZoom must be between 4 and 17')
+}
 
 // pour filtre les data selon la projection
 // ['LAMB93-IGN69', 'LAMB93-IGN78C', 'RGM04UTM38S-MAYO53', 'RGR92UTM40S-REUN89', 'RGSPM06U21-STPM50', 'UTM22RGFG95-GUYA77', 'WGS84UTM20-GUAD88SB', 'WGS84UTM20-GUAD88SM', 'WGS84UTM20-GUAD88', 'WGS84UTM20-MART87']
-const projFilter = config.projFilter && config.projFilter.length > 0 ? config.projFilter : undefined;
+const projFilter = Array.isArray(config.projFilter) && config.projFilter.length > 0 ? config.projFilter : undefined;
 
 const relSrs = {
     'LAMB93-IGN69': 'EPSG:5698',
@@ -42,18 +49,18 @@ const relSrs = {
 }
 
 const generateCmd = async () => {
-    const files = await computeFilesToDownload(RGE_ALTI_BASE_URL, config.resolution || '5M', config.projFilter)
+    const files = await computeFilesToDownload(RGE_ALTI_BASE_URL, resolution, projFilter)
     const projs = [...new Set(files.map(f => f.crs))]
 
     // génération des mkdir
     let mkdirCmd = [
-        `mkdir -p ${path.join(config.outPath, '3857/MNT')}`,
-        `mkdir -p ${path.join(config.outPath, '3857/terrainRGB')}`
+        `mkdir -p ${path.join(outPath, '3857/MNT')}`,
+        `mkdir -p ${path.join(outPath, '3857/terrainRGB')}`
 
       ];
     for (const proj of projs){
-        mkdirCmd.push( `mkdir -p ${path.join(config.outPath, proj, 'raw')}`)
-        mkdirCmd.push( `mkdir -p ${path.join(config.outPath, proj, 'asc')}`)
+        mkdirCmd.push( `mkdir -p ${path.join(outPath, proj, 'raw')}`)
+        mkdirCmd.push( `mkdir -p ${path.join(outPath, proj, 'asc')}`)
     }
 
 
@@ -61,7 +68,7 @@ const generateCmd = async () => {
     let wgetsCmd = [];
     for (const proj of projs){
         const dataWithThisProj = files.filter(f => f.crs == proj);
-        const w = dataWithThisProj.map(f =>`wget -O ${path.join(config.outPath,proj, 'raw', f.fileName)} ${RGE_ALTI_BASE_URL}${f.fileName}`)
+        const w = dataWithThisProj.map(f =>`wget -O ${path.join(outPath,proj, 'raw', f.fileName)} ${RGE_ALTI_BASE_URL}${f.fileName}`)
         wgetsCmd = [...wgetsCmd, ...w]
     }
 
@@ -69,9 +76,9 @@ const generateCmd = async () => {
     let unzipCmd = [];
     for (const proj of projs){
         // unzipCmd.push( `7z e "./${proj}/raw/*.7z" -o"./${proj}/asc" t *.asc -r -aou` )
-        unzipCmd.push( `7z e "${path.join(config.outPath,proj, 'raw', '*.7z')}" -o"${path.join(config.outPath,proj, 'asc')}" t *.asc -r -aou` )
+        unzipCmd.push( `7z e "${path.join(outPath,proj, 'raw', '*.7z')}" -o"${path.join(outPath,proj, 'asc')}" t *.asc -r -aou` )
         if (deleteUnnecessaryFiles){
-            unzipCmd.push(`rm -r "${path.join(config.outPath,proj, 'raw')}"`) // pour gagner de la place...
+            unzipCmd.push(`rm -r "${path.join(outPath,proj, 'raw')}"`) // pour gagner de la place...
         }
     }
 
@@ -81,8 +88,8 @@ const generateCmd = async () => {
     let buildVrtCmd = [];
     for (const proj of projs){
         const srs = relSrs[proj]
-        buildVrtCmd.push(`find ${path.join(config.outPath,proj, 'asc')} -name '*.asc' > ${path.join(config.outPath,proj, 'input-files.list')}`)
-        buildVrtCmd.push(  `gdalbuildvrt  -overwrite -a_srs ${srs} "${path.join(config.outPath,proj, 'mnt.vrt')}" -input_file_list ${path.join(config.outPath,proj, 'input-files.list')}` )
+        buildVrtCmd.push(`find ${path.join(outPath,proj, 'asc')} -name '*.asc' > ${path.join(outPath,proj, 'input-files.list')}`)
+        buildVrtCmd.push(  `gdalbuildvrt  -overwrite -a_srs ${srs} "${path.join(outPath,proj, 'mnt.vrt')}" -input_file_list ${path.join(outPath,proj, 'input-files.list')}` )
     }
 
 
@@ -90,10 +97,10 @@ const generateCmd = async () => {
     let gdalTranslateCmd = [];
     for (const proj of projs){
         const srs = relSrs[proj]
-        gdalTranslateCmd.push(  `gdal_translate -of GTiff -co "TILED=YES" -co COMPRESS=LZW -co BIGTIFF=YES -ot Float32 -a_srs ${srs} "${path.join(config.outPath,proj, 'mnt.vrt')}"  ${path.join(config.outPath,proj, 'mnt.tiff')}` )
+        gdalTranslateCmd.push(  `gdal_translate -of GTiff -co "TILED=YES" -co COMPRESS=LZW -co BIGTIFF=YES -ot Float32 -a_srs ${srs} "${path.join(outPath,proj, 'mnt.vrt')}"  ${path.join(outPath,proj, 'mnt.tiff')}` )
         if (deleteUnnecessaryFiles){
-            gdalTranslateCmd.push(`rm -r ${path.join(config.outPath,proj, 'asc')}`)
-            gdalTranslateCmd.push(`rm ${path.join(config.outPath,proj, 'mnt.vrt')}`)
+            gdalTranslateCmd.push(`rm -r ${path.join(outPath,proj, 'asc')}`)
+            gdalTranslateCmd.push(`rm ${path.join(outPath,proj, 'mnt.vrt')}`)
         }
     }
 
@@ -102,9 +109,9 @@ const generateCmd = async () => {
     for (const proj of projs){
         const srs = relSrs[proj]
 
-        gdalWarpCmd.push(  `gdalwarp -overwrite -of GTiff -co "TILED=YES" -co COMPRESS=LZW -co BIGTIFF=YES -ot Float32 ${path.join(config.outPath,proj, 'mnt.tiff')} ${path.join(config.outPath,'3857','MNT', `${proj}.tiff`)} -s_srs ${srs} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}` )
+        gdalWarpCmd.push(  `gdalwarp -overwrite -of GTiff -co "TILED=YES" -co COMPRESS=LZW -co BIGTIFF=YES -ot Float32 ${path.join(outPath,proj, 'mnt.tiff')} ${path.join(outPath,'3857','MNT', `${proj}.tiff`)} -s_srs ${srs} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}` )
         if (deleteUnnecessaryFiles){
-            gdalWarpCmd.push(`rm -r ${path.join(config.outPath,proj)}`)
+            gdalWarpCmd.push(`rm -r ${path.join(outPath,proj)}`)
         }
     }
 
@@ -112,9 +119,9 @@ const generateCmd = async () => {
     let gdalCalcCmd = [];
     for (const proj of projs){
         const srs = relSrs[proj]
-        gdalCalcCmd.push(  `gdal_calc.py --type=Float32 --quiet --co "TILED=YES" --co COMPRESS=LZW --co BIGTIFF=YES  -A ${path.join(config.outPath,'3857','MNT', `${proj}.tiff`)} --outfile=${path.join(config.outPath,'3857','MNT', `${proj}_cleaned.tiff`)} --calc="A*(A>0)" --overwrite --NoDataValue=0` )
+        gdalCalcCmd.push(  `gdal_calc.py --type=Float32 --quiet --co "TILED=YES" --co COMPRESS=LZW --co BIGTIFF=YES  -A ${path.join(outPath,'3857','MNT', `${proj}.tiff`)} --outfile=${path.join(outPath,'3857','MNT', `${proj}_cleaned.tiff`)} --calc="A*(A>0)" --overwrite --NoDataValue=0` )
         if (deleteUnnecessaryFiles){
-            gdalCalcCmd.push(`rm ${path.join(config.outPath,'3857','MNT', `${proj}.tiff`)}`) // pour gagner de la place...
+            gdalCalcCmd.push(`rm ${path.join(outPath,'3857','MNT', `${proj}.tiff`)}`) // pour gagner de la place...
         }
     }
 
@@ -122,9 +129,9 @@ const generateCmd = async () => {
     let rgbifyCmd = [];
     for (const proj of projs){
 
-        rgbifyCmd.push(  `rio rgbify --format png -j ${threads}  --min-z ${minZoom} --max-z ${maxZoom}  -b -10000  -i 0.1 ${path.join(config.outPath,'3857','MNT', `${proj}_cleaned.tiff`)} ${path.join(config.outPath,'3857','terrainRGB', `${proj}.mbtiles`)}` )
+        rgbifyCmd.push(  `rio rgbify --format png -j ${threads}  --min-z ${minZoom} --max-z ${maxZoom}  -b -10000  -i 0.1 ${path.join(outPath,'3857','MNT', `${proj}_cleaned.tiff`)} ${path.join(outPath,'3857','terrainRGB', `${proj}.mbtiles`)}` )
         if (deleteUnnecessaryFiles){
-            rgbifyCmd.push(`rm ${path.join(config.outPath,'3857','MNT', `${proj}_cleaned.tiff`)}`)
+            rgbifyCmd.push(`rm ${path.join(outPath,'3857','MNT', `${proj}_cleaned.tiff`)}`)
         }
     }
 
