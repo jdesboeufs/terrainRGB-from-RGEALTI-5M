@@ -66,7 +66,7 @@ const generateCmd = async () => {
   let wgetsCmd = []
   for (const proj of projs) {
     const dataWithThisProj = files.filter(f => f.crs === proj)
-    const w = dataWithThisProj.map(f => `wget -N -O ${path.join(outPath, proj, 'raw', f.fileName)} ${RGE_ALTI_BASE_URL}${f.fileName}`)
+    const w = dataWithThisProj.map(f => `wget -O ${path.join(outPath, proj, 'raw', f.fileName)} ${RGE_ALTI_BASE_URL}${f.fileName}`)
     wgetsCmd = [...wgetsCmd, ...w]
   }
 
