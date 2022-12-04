@@ -4,16 +4,9 @@ const os = require('os')
 const path = require('path')
 
 const {computeFilesToDownload} = require('./lib/files')
+const config = require('./config.json')
 
 const RGE_ALTI_BASE_URL = 'http://files.opendatarchives.fr/professionnels.ign.fr/rgealti/'
-
-let config;
-try {
-    config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json')))
-} catch (error) {
-    console.error(error)
-    throw error
-}
 
 if (!config.outPath){
     throw new Error(`outPath n'est pas configuré dans config.json`)
