@@ -63,7 +63,7 @@ const generateCmd = async () => {
   }
 
   // Génération des Wget
-  const wgetsCmd = files.map(f => `wget -N -P ${path.join(outPath, f.crs, 'raw', f.fileName)} ${RGE_ALTI_BASE_URL}${f.fileName}`)
+  const wgetsCmd = files.map(f => `wget -N -P ${path.join(outPath, f.crs, 'raw')} ${RGE_ALTI_BASE_URL}${f.fileName}`)
 
   // DEZIPAGE des 7zip
   const unzipCmd = []
