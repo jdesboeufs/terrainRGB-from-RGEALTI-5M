@@ -63,18 +63,13 @@ const generateCmd = async () => {
   }
 
   // Génération des Wget
-  let wgetsCmd = []
-  for (const proj of projs) {
-    const dataWithThisProj = files.filter(f => f.crs === proj)
-    const w = dataWithThisProj.map(f => `wget -O ${path.join(outPath, proj, 'raw', f.fileName)} ${RGE_ALTI_BASE_URL}${f.fileName}`)
-    wgetsCmd = [...wgetsCmd, ...w]
-  }
+  const wgetsCmd = files.map(f => `wget -N -P ${path.join(outPath, f.crs, 'raw', f.fileName)} ${RGE_ALTI_BASE_URL}${f.fileName}`)
 
   // DEZIPAGE des 7zip
   const unzipCmd = []
   for (const proj of projs) {
-    // UnzipCmd.push( `7z e "./${proj}/raw/*.7z" -o"./${proj}/asc" t *.asc -r -aou` )
     unzipCmd.push(`7z e "${path.join(outPath, proj, 'raw', '*.7z')}" -o"${path.join(outPath, proj, 'asc')}" t *.asc -r -aou`)
+
     if (deleteUnnecessaryFiles) {
       unzipCmd.push(`rm -r "${path.join(outPath, proj, 'raw')}"`) // Pour gagner de la place...
     }
@@ -93,6 +88,7 @@ const generateCmd = async () => {
   for (const proj of projs) {
     const srs = relSrs[proj]
     gdalTranslateCmd.push(`gdal_translate -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot Float32 -a_srs ${srs} "${path.join(outPath, proj, 'mnt.vrt')}"  ${path.join(outPath, proj, 'mnt.tiff')}`)
+
     if (deleteUnnecessaryFiles) {
       gdalTranslateCmd.push(`rm -r ${path.join(outPath, proj, 'asc')}`)
       gdalTranslateCmd.push(`rm ${path.join(outPath, proj, 'mnt.vrt')}`)
@@ -103,8 +99,8 @@ const generateCmd = async () => {
   const gdalWarpCmd = []
   for (const proj of projs) {
     const srs = relSrs[proj]
-
     gdalWarpCmd.push(`gdalwarp -overwrite -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot Float32 ${path.join(outPath, proj, 'mnt.tiff')} ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)} -s_srs ${srs} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}`)
+
     if (deleteUnnecessaryFiles) {
       gdalWarpCmd.push(`rm -r ${path.join(outPath, proj)}`)
     }
