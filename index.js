@@ -31,20 +31,19 @@ if (minZoom < 4 || minZoom > 17 || maxZoom < 4 || maxZoom > 17 || minZoom >= max
 }
 
 // Pour filtre les data selon la projection
-// ['LAMB93-IGN69', 'LAMB93-IGN78C', 'RGM04UTM38S-MAYO53', 'RGR92UTM40S-REUN89', 'RGSPM06U21-STPM50', 'UTM22RGFG95-GUYA77', 'WGS84UTM20-GUAD88SB', 'WGS84UTM20-GUAD88SM', 'WGS84UTM20-GUAD88', 'WGS84UTM20-MART87']
 const projFilter = Array.isArray(config.projFilter) && config.projFilter.length > 0 ? config.projFilter : undefined
 
 const relSrs = {
-  'LAMB93-IGN69': 'EPSG:5698',
-  'LAMB93-IGN78C': 'EPSG:5699',
-  'RGM04UTM38S-MAYO53': 'EPSG:4471',
-  'RGR92UTM40S-REUN89': 'EPSG:2975',
-  'RGSPM06U21-STPM50': 'IGNF:RGSPM06U21', // St pierre et miquelon
-  'UTM22RGFG95-GUYA77': 'EPSG:2972',
-  'WGS84UTM20-GUAD88SB': 'EPSG:32620',
-  'WGS84UTM20-GUAD88SM': 'EPSG:32620',
-  'WGS84UTM20-GUAD88': 'EPSG:32620',
-  'WGS84UTM20-MART87': 'EPSG:32620'
+  'LAMB93-IGN69': '2154', // France continentale
+  'LAMB93-IGN78C': '2154', // Corse
+  'RGM04UTM38S-MAYO53': '4471', // Mayotte
+  'RGR92UTM40S-REUN89': '2975', // La Réunion
+  'RGSPM06U21-STPM50': '4467', // Saint-Pierre-et-Miquelon
+  'RGFG95UTM22-GUYA77': '2972', // Guyane
+  'RGAF09UTM20-GUAD88SB': '5490', // Saint-Barthélémy
+  'RGAF09UTM20-GUAD88SM': '5490', // Saint-Martin
+  'WGS84UTM20-GUAD88': '5490', // Guadeloupe
+  'WGS84UTM20-MART87': '5490' // Martinique
 }
 
 const generateCmd = async () => {
@@ -80,14 +79,14 @@ const generateCmd = async () => {
   for (const proj of projs) {
     const srs = relSrs[proj]
     buildVrtCmd.push(`find ${path.join(outPath, proj, 'asc')} -name '*.asc' > ${path.join(outPath, proj, 'input-files.list')}`)
-    buildVrtCmd.push(`gdalbuildvrt  -overwrite -a_srs ${srs} "${path.join(outPath, proj, 'mnt.vrt')}" -input_file_list ${path.join(outPath, proj, 'input-files.list')}`)
+    buildVrtCmd.push(`gdalbuildvrt  -overwrite -a_srs EPSG:${srs} "${path.join(outPath, proj, 'mnt.vrt')}" -input_file_list ${path.join(outPath, proj, 'input-files.list')}`)
   }
 
   // GDAL_TRANSLATE => creation du MNT
   const gdalTranslateCmd = []
   for (const proj of projs) {
     const srs = relSrs[proj]
-    gdalTranslateCmd.push(`gdal_translate -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot Float32 -a_srs ${srs} "${path.join(outPath, proj, 'mnt.vrt')}"  ${path.join(outPath, proj, 'mnt.tiff')}`)
+    gdalTranslateCmd.push(`gdal_translate -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot Float32 -a_srs EPSG:${srs} "${path.join(outPath, proj, 'mnt.vrt')}"  ${path.join(outPath, proj, 'mnt.tiff')}`)
 
     if (deleteUnnecessaryFiles) {
       gdalTranslateCmd.push(`rm -r ${path.join(outPath, proj, 'asc')}`)
@@ -99,7 +98,7 @@ const generateCmd = async () => {
   const gdalWarpCmd = []
   for (const proj of projs) {
     const srs = relSrs[proj]
-    gdalWarpCmd.push(`gdalwarp -overwrite -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot Float32 ${path.join(outPath, proj, 'mnt.tiff')} ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)} -s_srs ${srs} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}`)
+    gdalWarpCmd.push(`gdalwarp -overwrite -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot UInt16 ${path.join(outPath, proj, 'mnt.tiff')} ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)} -s_srs EPSG:${srs} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}`)
 
     if (deleteUnnecessaryFiles) {
       gdalWarpCmd.push(`rm -r ${path.join(outPath, proj)}`)
