@@ -33,22 +33,9 @@ if (minZoom < 4 || minZoom > 17 || maxZoom < 4 || maxZoom > 17 || minZoom >= max
 // Pour filtre les data selon la projection
 const projFilter = Array.isArray(config.projFilter) && config.projFilter.length > 0 ? config.projFilter : undefined
 
-const relSrs = {
-  'LAMB93-IGN69': '2154', // France continentale
-  'LAMB93-IGN78C': '2154', // Corse
-  'RGM04UTM38S-MAYO53': '4471', // Mayotte
-  'RGR92UTM40S-REUN89': '2975', // La Réunion
-  'RGSPM06U21-STPM50': '4467', // Saint-Pierre-et-Miquelon
-  'RGFG95UTM22-GUYA77': '2972', // Guyane
-  'RGAF09UTM20-GUAD88SB': '5490', // Saint-Barthélémy
-  'RGAF09UTM20-GUAD88SM': '5490', // Saint-Martin
-  'WGS84UTM20-GUAD88': '5490', // Guadeloupe
-  'WGS84UTM20-MART87': '5490' // Martinique
-}
-
 const generateCmd = async () => {
   const files = await computeFilesToDownload(RGE_ALTI_BASE_URL, resolution, projFilter)
-  const projs = [...new Set(files.map(f => f.crs))]
+  const epsgCodes = [...new Set(files.map(f => f.epsg))]
 
   // Génération des mkdir
   const mkdirCmd = [
@@ -56,70 +43,67 @@ const generateCmd = async () => {
     `mkdir -p ${path.join(outPath, '3857/terrainRGB')}`
 
   ]
-  for (const proj of projs) {
-    mkdirCmd.push(`mkdir -p ${path.join(outPath, proj, 'raw')}`)
-    mkdirCmd.push(`mkdir -p ${path.join(outPath, proj, 'asc')}`)
+  for (const epsgCode of epsgCodes) {
+    mkdirCmd.push(`mkdir -p ${path.join(outPath, epsgCode, 'raw')}`)
+    mkdirCmd.push(`mkdir -p ${path.join(outPath, epsgCode, 'asc')}`)
   }
 
   // Génération des Wget
-  const wgetsCmd = files.map(f => `wget -N -P ${path.join(outPath, f.crs, 'raw')} ${RGE_ALTI_BASE_URL}${f.fileName}`)
+  const wgetsCmd = files.map(f => `wget -N -P ${path.join(outPath, f.epsg, 'raw')} ${RGE_ALTI_BASE_URL}${f.fileName}`)
 
   // DEZIPAGE des 7zip
   const unzipCmd = []
-  for (const proj of projs) {
-    unzipCmd.push(`7z e "${path.join(outPath, proj, 'raw', '*.7z')}" -o"${path.join(outPath, proj, 'asc')}" t *.asc -r -aou`)
+  for (const epsgCode of epsgCodes) {
+    unzipCmd.push(`7z e "${path.join(outPath, epsgCode, 'raw', '*.7z')}" -o"${path.join(outPath, epsgCode, 'asc')}" t *.asc -r -aou`)
 
     if (deleteUnnecessaryFiles) {
-      unzipCmd.push(`rm -r "${path.join(outPath, proj, 'raw')}"`) // Pour gagner de la place...
+      unzipCmd.push(`rm -r "${path.join(outPath, epsgCode, 'raw')}"`) // Pour gagner de la place...
     }
   }
 
   // BUILD VRT à partir des asc
   const buildVrtCmd = []
-  for (const proj of projs) {
-    const srs = relSrs[proj]
-    buildVrtCmd.push(`find ${path.join(outPath, proj, 'asc')} -name '*.asc' > ${path.join(outPath, proj, 'input-files.list')}`)
-    buildVrtCmd.push(`gdalbuildvrt  -overwrite -a_srs EPSG:${srs} "${path.join(outPath, proj, 'mnt.vrt')}" -input_file_list ${path.join(outPath, proj, 'input-files.list')}`)
+  for (const epsgCode of epsgCodes) {
+    buildVrtCmd.push(`find ${path.join(outPath, epsgCode, 'asc')} -name '*.asc' > ${path.join(outPath, epsgCode, 'input-files.list')}`)
+    buildVrtCmd.push(`gdalbuildvrt  -overwrite -a_srs EPSG:${epsgCode} "${path.join(outPath, epsgCode, 'mnt.vrt')}" -input_file_list ${path.join(outPath, epsgCode, 'input-files.list')}`)
   }
 
   // GDAL_TRANSLATE => creation du MNT
   const gdalTranslateCmd = []
-  for (const proj of projs) {
-    const srs = relSrs[proj]
-    gdalTranslateCmd.push(`gdal_translate -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot Float32 -a_srs EPSG:${srs} "${path.join(outPath, proj, 'mnt.vrt')}"  ${path.join(outPath, proj, 'mnt.tiff')}`)
+  for (const epsgCode of epsgCodes) {
+    gdalTranslateCmd.push(`gdal_translate -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot Float32 -a_srs EPSG:${epsgCode} "${path.join(outPath, epsgCode, 'mnt.vrt')}"  ${path.join(outPath, epsgCode, 'mnt.tiff')}`)
 
     if (deleteUnnecessaryFiles) {
-      gdalTranslateCmd.push(`rm -r ${path.join(outPath, proj, 'asc')}`)
-      gdalTranslateCmd.push(`rm ${path.join(outPath, proj, 'mnt.vrt')}`)
+      gdalTranslateCmd.push(`rm -r ${path.join(outPath, epsgCode, 'asc')}`)
+      gdalTranslateCmd.push(`rm ${path.join(outPath, epsgCode, 'mnt.vrt')}`)
     }
   }
 
   // GDAL_WRAP => reprojection en 3857
   const gdalWarpCmd = []
-  for (const proj of projs) {
-    const srs = relSrs[proj]
-    gdalWarpCmd.push(`gdalwarp -overwrite -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot UInt16 ${path.join(outPath, proj, 'mnt.tiff')} ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)} -s_srs EPSG:${srs} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}`)
+  for (const epsgCode of epsgCodes) {
+    gdalWarpCmd.push(`gdalwarp -overwrite -of GTiff -co "TILED=YES" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" -co "NUM_THREADS=ALL_CPUS" -co "BIGTIFF=YES" -ot UInt16 ${path.join(outPath, epsgCode, 'mnt.tiff')} ${path.join(outPath, '3857', 'MNT', `${epsgCode}.tiff`)} -s_srs EPSG:${epsgCode} -t_srs EPSG:3857 -multi -wo NUM_THREADS=${threads}`)
 
     if (deleteUnnecessaryFiles) {
-      gdalWarpCmd.push(`rm -r ${path.join(outPath, proj)}`)
+      gdalWarpCmd.push(`rm -r ${path.join(outPath, epsgCode)}`)
     }
   }
 
   // GDAL_CALC => Supprime les données dont l'altitude est < 0. Terrain RGB ne fonctionne que pour les valeurs positives, sinon on a des artefacts
   const gdalCalcCmd = []
-  for (const proj of projs) {
-    gdalCalcCmd.push(`gdal_calc.py --type=Float32 --quiet --co "TILED=YES" --co "COMPRESS=DEFLATE" --co "PREDICTOR=2" --co "NUM_THREADS=ALL_CPUS" --co "BIGTIFF=YES"  -A ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)} --outfile=${path.join(outPath, '3857', 'MNT', `${proj}_cleaned.tiff`)} --calc="A*(A>0)" --overwrite --NoDataValue=0`)
+  for (const epsgCode of epsgCodes) {
+    gdalCalcCmd.push(`gdal_calc.py --type=Float32 --quiet --co "TILED=YES" --co "COMPRESS=DEFLATE" --co "PREDICTOR=2" --co "NUM_THREADS=ALL_CPUS" --co "BIGTIFF=YES"  -A ${path.join(outPath, '3857', 'MNT', `${epsgCode}.tiff`)} --outfile=${path.join(outPath, '3857', 'MNT', `${epsgCode}_cleaned.tiff`)} --calc="A*(A>0)" --overwrite --NoDataValue=0`)
     if (deleteUnnecessaryFiles) {
-      gdalCalcCmd.push(`rm ${path.join(outPath, '3857', 'MNT', `${proj}.tiff`)}`) // Pour gagner de la place...
+      gdalCalcCmd.push(`rm ${path.join(outPath, '3857', 'MNT', `${epsgCode}.tiff`)}`) // Pour gagner de la place...
     }
   }
 
   // Génération des terrain RGB
   const rgbifyCmd = []
-  for (const proj of projs) {
-    rgbifyCmd.push(`rio rgbify --format png -j ${threads}  --min-z ${minZoom} --max-z ${maxZoom}  -b -10000  -i 0.1 ${path.join(outPath, '3857', 'MNT', `${proj}_cleaned.tiff`)} ${path.join(outPath, '3857', 'terrainRGB', `${proj}.mbtiles`)}`)
+  for (const epsgCode of epsgCodes) {
+    rgbifyCmd.push(`rio rgbify --format png -j ${threads}  --min-z ${minZoom} --max-z ${maxZoom}  -b -10000  -i 0.1 ${path.join(outPath, '3857', 'MNT', `${epsgCode}_cleaned.tiff`)} ${path.join(outPath, '3857', 'terrainRGB', `${epsgCode}.mbtiles`)}`)
     if (deleteUnnecessaryFiles) {
-      rgbifyCmd.push(`rm ${path.join(outPath, '3857', 'MNT', `${proj}_cleaned.tiff`)}`)
+      rgbifyCmd.push(`rm ${path.join(outPath, '3857', 'MNT', `${epsgCode}_cleaned.tiff`)}`)
     }
   }
 
